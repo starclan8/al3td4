@@ -1,106 +1,180 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\HelpController;
+use App\Http\Controllers\DemoController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\AuthController as AdminAuthController;
+use App\Http\Controllers\Admin\FamilyController;
+use App\Http\Controllers\Admin\NeedController as AdminNeedController;
+use App\Http\Controllers\Admin\NeedTypeController;
+use App\Http\Controllers\Admin\HelperController as AdminHelperController;
 use App\Http\Controllers\Family\AuthController as FamilyAuthController;
 use App\Http\Controllers\Family\ForgotPasswordController;
 use App\Http\Controllers\Family\ResetPasswordController;
 use App\Http\Controllers\Family\DashboardController as FamilyDashboardController;
 use App\Http\Controllers\Family\NeedController as FamilyNeedController;
 use App\Http\Controllers\Family\ProfileController as FamilyProfileController;
-use App\Http\Controllers\Admin\AuthController as AdminAuthController;
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\FamilyController;
-use App\Http\Controllers\Admin\NeedController as AdminNeedController;
-use App\Http\Controllers\Admin\NeedTypeController;
-use App\Http\Controllers\Admin\HelperController as AdminHelperController;
 use App\Http\Controllers\Family\HelperController as FamilyHelperController;
-use App\Http\Controllers\DemoController;
 
-// ... rest of your routesRoute::get('/', function () {
-   Route::get('/', function () {
-    return view('welcome'); // Landing page
+// ============================================
+// PUBLIC ROUTES (No Authentication Required)
+// ============================================
+
+// Landing and Contact Pages
+Route::get('/', function () {
+    return view('welcome');
 })->name('home');
 
 Route::get('/contact', function () {
-    return view('contact'); // Contact page mentioned in emails
+    return view('contact');
 })->name('contact');
 
-// Calendar Routes (Public Community Calendar)
-Route::get('/calendar', [App\Http\Controllers\CalendarController::class, 'index'])->name('calendar.index');
-Route::get('/calendar/{need}', [App\Http\Controllers\CalendarController::class, 'show'])->name('calendar.show');
+// Public Calendar (Community Calendar)
+Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar.index');
+Route::get('/calendar/{need}', [CalendarController::class, 'show'])->name('calendar.show');
 
-// Helper Sign-Up Routes (For signing up to help with a need)
-Route::get('/help/{need}/create', [App\Http\Controllers\HelpController::class, 'create'])->name('help.create');
-Route::post('/help/{need}', [App\Http\Controllers\HelpController::class, 'store'])->name('help.store');
+// Demo Routes (if needed)
+Route::get('/demo', [DemoController::class, 'index'])->name('demo');
 
-// Family Authentication and Management Routes
-Route::prefix('family')->group(function () {
-    // Public family routes
-    Route::get('/login', [App\Http\Controllers\Family\AuthController::class, 'showLoginForm'])->name('family.login');
-    Route::post('/login', [App\Http\Controllers\Family\AuthController::class, 'login']);
-    Route::get('/register', [App\Http\Controllers\Family\AuthController::class, 'showRegisterForm'])->name('family.register');
-    Route::post('/register', [App\Http\Controllers\Family\AuthController::class, 'register']);
+// ============================================
+// AUTHENTICATED USER ROUTES
+// ============================================
+
+Route::middleware('auth')->group(function () {
+    Route::get('/dashboard', function () {
+        return view('dashboard');
+    })->name('dashboard');
+
+    // User Profile Management
+    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
+    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// ============================================
+// HELPER SIGN-UP ROUTES
+// ============================================
+
+Route::middleware(['auth', 'permission:sign up as helper'])->group(function () {
+    Route::get('/help/{need}/create', [HelpController::class, 'create'])->name('help.create');
+    Route::post('/help/{need}', [HelpController::class, 'store'])->name('help.store');
+});
+
+// ============================================
+// FAMILY PORTAL ROUTES
+// ============================================
+
+Route::prefix('family')->name('family.')->group(function () {
+    // Public Family Routes (Login/Register)
+    Route::get('/login', [FamilyAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [FamilyAuthController::class, 'login']);
+    Route::get('/register', [FamilyAuthController::class, 'showRegisterForm'])->name('register');
+    Route::post('/register', [FamilyAuthController::class, 'register']);
     
     // Password Reset Routes
-    Route::get('/password/request', [App\Http\Controllers\Family\ForgotPasswordController::class, 'showLinkRequestForm'])->name('family.password.request');
-    Route::post('/password/email', [App\Http\Controllers\Family\ForgotPasswordController::class, 'sendResetLinkEmail'])->name('family.password.email');
-    Route::get('/password/reset/{token}', [App\Http\Controllers\Family\ResetPasswordController::class, 'showResetForm'])->name('family.password.reset');
-    Route::post('/password/reset', [App\Http\Controllers\Family\ResetPasswordController::class, 'reset'])->name('family.password.update');
+    Route::get('/password/request', [ForgotPasswordController::class, 'showLinkRequestForm'])->name('password.request');
+    Route::post('/password/email', [ForgotPasswordController::class, 'sendResetLinkEmail'])->name('password.email');
+    Route::get('/password/reset/{token}', [ResetPasswordController::class, 'showResetForm'])->name('password.reset');
+    Route::post('/password/reset', [ResetPasswordController::class, 'reset'])->name('password.update');
     
-    // Logout (can be public but typically under auth)
-    Route::post('/logout', [App\Http\Controllers\Family\AuthController::class, 'logout'])->name('family.logout');
+    // Logout
+    Route::post('/logout', [FamilyAuthController::class, 'logout'])->name('logout');
     
-    // Protected family routes
+    // Protected Family Routes
     Route::middleware('auth:family')->group(function () {
-        Route::get('/dashboard', [App\Http\Controllers\Family\DashboardController::class, 'index'])->name('family.dashboard');
+        Route::get('/dashboard', [FamilyDashboardController::class, 'index'])->name('dashboard');
         
         // Family Needs Management
-        Route::resource('needs', App\Http\Controllers\Family\NeedController::class);
+        Route::resource('needs', FamilyNeedController::class);
         
         // Family Profile Management
-        Route::get('/profile', [App\Http\Controllers\Family\ProfileController::class, 'edit'])->name('family.profile.edit');
-        Route::patch('/profile', [App\Http\Controllers\Family\ProfileController::class, 'update'])->name('family.profile.update');
+        Route::get('/profile', [FamilyProfileController::class, 'edit'])->name('profile.edit');
+        Route::patch('/profile', [FamilyProfileController::class, 'update'])->name('profile.update');
+        
+        // My Helpers
+        Route::get('/my-helpers', [FamilyHelperController::class, 'index'])->name('helpers.index');
     });
 });
 
-// Admin Routes
-Route::prefix('admin')->group(function () {
-    // Public admin routes
-    Route::get('/login', [App\Http\Controllers\Admin\AuthController::class, 'showLoginForm'])->name('admin.login');
-    Route::post('/login', [App\Http\Controllers\Admin\AuthController::class, 'login']);
-    Route::post('/logout', [App\Http\Controllers\Admin\AuthController::class, 'logout'])->name('admin.logout');
+// ============================================
+// ADMIN PORTAL ROUTES
+// ============================================
+
+Route::prefix('admin')->name('admin.')->group(function () {
+    // Public Admin Routes (Login)
+    Route::get('/login', [AdminAuthController::class, 'showLoginForm'])->name('login');
+    Route::post('/login', [AdminAuthController::class, 'login']);
+    Route::post('/logout', [AdminAuthController::class, 'logout'])->name('logout');
     
-    // Protected admin routes
-    Route::middleware('auth:admin')->group(function () {
-        Route::get('/dashboard', [App\Http\Controllers\Admin\DashboardController::class, 'index'])->name('admin.dashboard');
+    // Protected Admin Routes
+    Route::middleware(['auth', 'admin'])->group(function () {
+        // Dashboard
+        Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+        
+        // User Management with Permissions
+        Route::middleware('permission:view users')->group(function () {
+            Route::get('/users', [UserController::class, 'index'])->name('users.index');
+        });
+        
+        Route::middleware('permission:edit users')->group(function () {
+            Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');
+            Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
+        });
+        
+        Route::middleware('permission:delete users')->group(function () {
+            Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');
+        });
         
         // Family Management
-        Route::resource('families', App\Http\Controllers\Admin\FamilyController::class)->only(['index', 'show', 'edit', 'update', 'destroy']);
+        Route::resource('families', FamilyController::class)->only(['index', 'show', 'edit', 'update', 'destroy']);
         
         // Need Management
-        Route::resource('needs', App\Http\Controllers\Admin\NeedController::class)->only(['index', 'show', 'destroy']);
+        Route::resource('needs', AdminNeedController::class)->only(['index', 'show', 'destroy']);
         
-        // Additional Admin Features (e.g., exports from controller methods)
-        Route::get('/export/{type}', [App\Http\Controllers\Admin\DashboardController::class, 'export'])->name('admin.export');
+        // Need Types Management
+        Route::resource('need-types', NeedTypeController::class);
+        
+        // Helper Management
+        Route::get('/helpers', [AdminHelperController::class, 'index'])->name('helpers.index');
+        
+        // Export Data
+        Route::get('/export/{type}', [DashboardController::class, 'export'])->name('export');
     });
 });
 
-// Additional Routes (Inferred from models and features)
-// Need Types (Admin or Public? Assuming Admin for management)
-Route::middleware('auth:admin')->group(function () {
-    Route::resource('need-types', App\Http\Controllers\Admin\NeedTypeController::class);
+// ============================================
+// NEED MANAGEMENT ROUTES (Public/Authenticated)
+// ============================================
+
+Route::middleware(['auth', 'permission:view needs'])->group(function () {
+    Route::get('/needs', [FamilyNeedController::class, 'index'])->name('needs.index');
+    Route::get('/needs/{need}', [FamilyNeedController::class, 'show'])->name('needs.show');
 });
 
-// Helper Management (Possibly admin or family views)
-Route::middleware('auth:admin')->get('/helpers', [App\Http\Controllers\Admin\HelperController::class, 'index'])->name('admin.helpers.index');
-Route::middleware('auth:family')->get('/my-helpers', [App\Http\Controllers\Family\HelperController::class, 'index'])->name('family.helpers.index');
+Route::middleware(['auth', 'permission:create needs'])->group(function () {
+    Route::get('/needs/create', [FamilyNeedController::class, 'create'])->name('needs.create');
+    Route::post('/needs', [FamilyNeedController::class, 'store'])->name('needs.store');
+});
 
-// Demo Data Routes (For testing, if needed)
-Route::get('/demo', [App\Http\Controllers\DemoController::class, 'index'])->name('demo'); // If demo mode is accessible
+Route::middleware(['auth', 'permission:edit own needs'])->group(function () {
+    Route::get('/needs/{need}/edit', [FamilyNeedController::class, 'edit'])->name('needs.edit');
+    Route::put('/needs/{need}', [FamilyNeedController::class, 'update'])->name('needs.update');
+});
 
-// Fallback Route (Optional)
+// ============================================
+// AUTHENTICATION ROUTES
+// ============================================
+
+require __DIR__.'/auth.php';
+
+// ============================================
+// FALLBACK ROUTE
+// ============================================
+
 Route::fallback(function () {
     return view('errors.404');
 });
