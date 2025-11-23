@@ -5,7 +5,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\HelpController;
 use App\Http\Controllers\DemoController;
-use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\AuthController as AdminAuthController;
 use App\Http\Controllers\Admin\FamilyController;
@@ -44,10 +43,10 @@ Route::get('/demo', [DemoController::class, 'index'])->name('demo');
 // AUTHENTICATED USER ROUTES
 // ============================================
 
+use App\Http\Controllers\DashboardController;
+
 Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', function () {
-        return view('dashboard');
-    })->name('dashboard');
+    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
     // User Profile Management
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
