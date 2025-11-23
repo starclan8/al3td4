@@ -115,4 +115,28 @@ class User extends Authenticatable
     {
         return $query->whereNotNull('email_verified_at');
     }
+
+    /**
+     * Needs posted by this user
+     */
+    public function needs()
+    {
+        return $this->hasMany(Need::class);
+    }
+
+    /**
+     * Needs this user has signed up to help with
+     */
+    public function helpingWith()
+    {
+        return $this->hasMany(Helper::class);
+    }
+
+    /**
+     * Active needs this user posted
+     */
+    public function activeNeeds()
+    {
+        return $this->hasMany(Need::class)->active();
+    }
 }
